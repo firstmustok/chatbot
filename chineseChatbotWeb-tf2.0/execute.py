@@ -110,11 +110,14 @@ def predict(sentence):
 
         predicted_id = tf.argmax(predictions[0]).numpy()
 
-
         if target_token.index_word[predicted_id] == 'end':
             break
-        result += target_token.index_word[predicted_id] + ' '
 
+        val = target_token.index_word[predicted_id]
+        if isinstance(val, int):
+            val = str(val)
+
+        result += val
       
         dec_input = tf.expand_dims([predicted_id], 0)
 
@@ -127,7 +130,6 @@ if __name__ == '__main__':
     if len(sys.argv) - 1:
         gConfig = getConfig.get_config(sys.argv[1])
     else:
-
         gConfig = getConfig.get_config()
 
     print('\n>> Mode : %s\n' %(gConfig['mode']))
