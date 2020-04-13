@@ -53,6 +53,7 @@ def tokenize(lang):
 
 input_tensor,input_token,target_tensor,target_token= read_data(gConfig['seq_data'], gConfig['max_train_data_size'])
 
+
 def train():
     print("Preparing data in %s" % gConfig['train_data'])
     steps_per_epoch = len(input_tensor) // gConfig['batch_size']
@@ -60,9 +61,14 @@ def train():
     enc_hidden = seq2seqModel.encoder.initialize_hidden_state()
     checkpoint_dir = gConfig['model_data']
     ckpt=tf.io.gfile.listdir(checkpoint_dir)
+
+    manager = tf.train.CheckpointManager(seq2seqModel.checkpoint, directory=checkpoint_dir, max_to_keep=5)
+
     if ckpt:
         print("reload pretrained model")
-        seq2seqModel.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+        # seq2seqModel.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+        seq2seqModel.checkpoint.restore(manager.latest_checkpoint)
+
     BUFFER_SIZE = len(input_tensor)
     dataset = tf.data.Dataset.from_tensor_slices((input_tensor,target_tensor)).shuffle(BUFFER_SIZE)
     dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
@@ -86,12 +92,17 @@ def train():
 
         print('训练总步数: {} 每步耗时: {}  最新每步耗时: {} 最新每步loss {:.4f}'.format(current_steps, step_time_total, step_time_epoch,
                                                                       step_loss.numpy()))
-        seq2seqModel.checkpoint.save(file_prefix=checkpoint_prefix)
+        # seq2seqModel.checkpoint.save(file_prefix=checkpoint_prefix)
+        manager.save()
 
         sys.stdout.flush()
 def predict(sentence):
     checkpoint_dir = gConfig['model_data']
-    seq2seqModel.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+
+    # seq2seqModel.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+    manager = tf.train.CheckpointManager(seq2seqModel.checkpoint, directory=checkpoint_dir, max_to_keep=5)
+    seq2seqModel.checkpoint.restore(manager.latest_checkpoint)
+
     sentence = preprocess_sentence(sentence)
     inputs = [input_token.word_index.get(i,3) for i in sentence.split(' ')]
     inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs],maxlen=max_length_inp,padding='post')
